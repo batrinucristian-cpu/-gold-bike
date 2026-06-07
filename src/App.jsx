@@ -1,5 +1,4 @@
-.
-import { useState, useRef, useCallback, useEffect } from "react";
+.import { useState, useRef, useCallback, useEffect } from "react";
 import { db } from "./firebase";
 import {
   collection, doc, onSnapshot, setDoc, updateDoc, deleteDoc
@@ -425,3 +424,4 @@ export default function App() {
     </div>
   );
 }
+
