@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useEffect } from "react";
+.import { useState, useRef, useCallback, useEffect } from "react";
 import { db } from "./firebase";
 import {
   collection, doc, onSnapshot, setDoc, updateDoc, deleteDoc
@@ -55,11 +55,10 @@ Datele personale ale clientului sunt prelucrate exclusiv în scopul prestării s
 Prin semnătură, clientul confirmă că a citit și acceptat toate condițiile de mai sus.
 `.trim();
 
-function printDeviz(o, cl, service) {
+function getDevizHtml(o, cl, service) {
   const totalP = (o.piese||[]).reduce((s,p)=>s+Number(p.cant)*Number(p.pret),0);
   const total = totalP + Number(o.manopera||0);
-  const win = window.open("","_blank");
-  win.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Deviz – ${cl?.nume}</title>
+  return `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Deviz – ${cl?.nume}</title>
   <style>body{font-family:Arial,sans-serif;max-width:700px;margin:40px auto;color:#222;font-size:13px}h1{font-size:20px;margin:0}h2{font-size:14px;margin:16px 0 8px;border-bottom:1px solid #ddd;padding-bottom:4px}.header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:20px;padding-bottom:16px;border-bottom:2px solid #E63946}.badge{background:#E63946;color:#fff;padding:3px 10px;border-radius:4px;font-size:11px;font-weight:bold}table{width:100%;border-collapse:collapse;margin-bottom:12px}th{background:#F5F5F5;padding:7px 10px;text-align:left;font-size:11px;border:1px solid #E0E0E0}td{padding:7px 10px;border:1px solid #E0E0E0}.total{font-size:16px;font-weight:900;color:#E63946;text-align:right;margin:8px 0}.legal{font-size:10px;color:#555;margin-top:20px;padding:12px;background:#F9F9F9;border-radius:6px;white-space:pre-line;line-height:1.6}.sig{margin-top:30px;display:flex;justify-content:space-between}.sig-box{text-align:center;width:45%}.sig-box img{max-width:200px;border:1px solid #ddd;border-radius:6px}.sig-line{border-top:1px solid #222;margin-top:40px;padding-top:4px;font-size:11px}@media print{body{margin:20px}}</style></head><body>
   <div class="header"><div><h1>🔧 ${service.nume}</h1><div style="color:#666;margin-top:4px">${service.adresa} · ${service.tel} · ${service.email}</div><div style="color:#888;font-size:11px">CUI: ${service.cui}</div></div><div style="text-align:right"><div class="badge">DEVIZ DE LUCRĂRI</div><div style="margin-top:6px;font-size:12px">Nr. ${o.id.toUpperCase()}<br>Data: ${fmt(o.data)}</div></div></div>
   <h2>Date client & bicicletă</h2>
@@ -69,8 +68,25 @@ function printDeviz(o, cl, service) {
   <div class="total">TOTAL DE PLATĂ: ${total} lei</div>
   <div class="legal">${LEGAL(o,cl,service)}</div>
   <div class="sig"><div class="sig-box"><div class="sig-line">Prestator: ${service.nume}</div></div><div class="sig-box">${o.semnatura ? `<img src="${o.semnatura}" />` : ""}<div class="sig-line">Client: ${cl?.nume||"—"}<br>Data: ${fmt(today())}</div></div></div>
-  <script>window.onload=()=>{window.print()}<\/script></body></html>`);
+  </body></html>`;
+}
+
+function printDeviz(o, cl, service) {
+  const html = getDevizHtml(o, cl, service);
+  const win = window.open("","_blank");
+  win.document.write(html.replace("</body>", `<script>window.onload=()=>{window.print();window.onafterprint=()=>window.close();}<\/script></body>`));
   win.document.close();
+}
+
+function downloadDeviz(o, cl, service) {
+  const html = getDevizHtml(o, cl, service);
+  const blob = new Blob([html], {type:"text/html"});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `deviz-${cl?.nume||"client"}-${o.data}.html`;
+  a.click();
+  URL.revokeObjectURL(url);
 }
 
 const Badge = ({ s }) => { const c=SC[s]||SC["Preluat"]; return <span style={{background:c.bg,color:c.text,borderRadius:20,padding:"3px 11px",fontSize:11,fontWeight:700,display:"inline-flex",alignItems:"center",gap:5}}><span style={{width:6,height:6,borderRadius:"50%",background:c.dot}}/>{s}</span>; };
@@ -176,14 +192,30 @@ export default function App() {
   }
 
   // ── Photos ──────────────────────────────────────────────────────────────────
+  function compressImage(dataUrl, maxWidth=800, quality=0.6) {
+    return new Promise(resolve => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        const ratio = Math.min(maxWidth / img.width, 1);
+        canvas.width = img.width * ratio;
+        canvas.height = img.height * ratio;
+        canvas.getContext("2d").drawImage(img, 0, 0, canvas.width, canvas.height);
+        resolve(canvas.toDataURL("image/jpeg", quality));
+      };
+      img.src = dataUrl;
+    });
+  }
+
   function handlePhotos(e) {
     const files = Array.from(e.target.files);
     e.target.value = "";
     files.forEach(f => {
       const r = new FileReader();
       r.onload = async ev => {
+        const compressed = await compressImage(ev.target.result);
         const order = orders.find(o => o.id === sel);
-        const newPoze = [...(order.poze||[]), { id:uid(), url:ev.target.result, name:f.name }];
+        const newPoze = [...(order.poze||[]), { id:uid(), url:compressed, name:f.name }];
         await patchOrder(sel, { poze: newPoze });
       };
       r.readAsDataURL(f);
@@ -328,7 +360,10 @@ export default function App() {
           <div style={{display:"flex",gap:6,marginBottom:14,overflowX:"auto"}}>
             {STATUSES.map(s=><button key={s} onClick={()=>patchOrder(sel,{status:s})} style={{padding:"6px 12px",borderRadius:10,border:`2px solid ${SC[s].dot}`,background:selOrder.status===s?SC[s].dot:"transparent",color:selOrder.status===s?"#fff":SC[s].text,fontWeight:700,fontSize:11,cursor:"pointer",whiteSpace:"nowrap"}}>{s}</button>)}
           </div>
-          <Btn onClick={()=>printDeviz(selOrder,cl,SERVICE)} color="#1565C0" outline small style={{marginBottom:14,width:"100%"}}>🖨️ Tipărește deviz / PDF</Btn>
+          <div style={{display:"flex",gap:8,marginBottom:14}}>
+            <Btn onClick={()=>printDeviz(selOrder,cl,SERVICE)} color="#1565C0" outline small style={{flex:1}}>🖨️ Print</Btn>
+            <Btn onClick={()=>downloadDeviz(selOrder,cl,SERVICE)} color="#1565C0" small style={{flex:1}}>📥 Descarcă deviz</Btn>
+          </div>
           <Card><Label t="Client"/><div style={{fontWeight:800,fontSize:15}}>{cl?.nume}</div><div style={{fontSize:13,color:"#888",marginTop:2}}>📞 {cl?.tel} {cl?.email&&`· ${cl.email}`}</div>{cl?.adresa&&<div style={{fontSize:11,color:"#bbb",marginTop:1}}>📍 {cl.adresa}</div>}</Card>
           <Card><Label t="Bicicletă & defecte"/><div style={{fontWeight:700,fontSize:14,marginBottom:4}}>🚲 {selOrder.bicicleta}</div><div style={{fontSize:13,color:"#555"}}>{selOrder.defect}</div></Card>
           <Card><Label t="Observații inițiale (client)"/><TA value={selOrder.observatii||""} onChange={v=>patchOrder(sel,{observatii:v})} placeholder="Ce a spus clientul..."/></Card>
