@@ -20,12 +20,12 @@ const COMANDA_ST = { "De comandat": "#FF7043", "Comandat": "#1E88E5", "Sosit": "
 
 const SERVICE = {
   nume: "Gold Bike Service",
-  adresa: "Strada Lupeni 21 Bistrita",
+  adresa: "Adresa ta aici",
   tel: "07xx xxx xxx",
-  email: "goldbike_bn@yahoo.com",
-  cui: "36155332",
+  email: "email@goldbike.ro",
+  cui: "RO00000000",
   zileGratuite: 7,
-  taxaZi: 15,
+  taxaZi: 10,
 };
 
 const LEGAL = (o, cl, service) => `
@@ -277,6 +277,31 @@ export default function App() {
   const totalCost =o=>totalPiese(o)+Number(o.manopera||0);
   const bikeHistory=selOrder?orders.filter(o=>o.clientId===selOrder.clientId&&o.bicicleta===selOrder.bicicleta).sort((a,b)=>b.data.localeCompare(a.data)):[];
   const revizii=orders.filter(o=>o.nextRevizieData&&o.status!=="Livrat").sort((a,b)=>a.nextRevizieData.localeCompare(b.nextRevizieData));
+
+  // ── Auth ─────────────────────────────────────────────────────────────────────
+  const PASS = "goldbike2024";
+  const [authed, setAuthed] = useState(() => localStorage.getItem("gb_auth") === "1");
+  const [passInput, setPassInput] = useState("");
+  const [passErr, setPassErr] = useState(false);
+
+  function handleLogin() {
+    if(passInput === PASS) { localStorage.setItem("gb_auth","1"); setAuthed(true); }
+    else { setPassErr(true); setTimeout(()=>setPassErr(false), 2000); }
+  }
+
+  if(!authed) return (
+    <div style={{display:"flex",alignItems:"center",justifyContent:"center",height:"100vh",background:"linear-gradient(135deg,#1a1a2e,#16213e)",flexDirection:"column",gap:16,padding:24}}>
+      <div style={{fontSize:48}}>🚲</div>
+      <div style={{fontWeight:900,fontSize:22,color:"#fff",letterSpacing:-0.5}}>Gold Bike <span style={{color:"#E63946"}}>Service</span></div>
+      <div style={{fontSize:13,color:"rgba(255,255,255,0.5)",marginBottom:8}}>Introduceți parola de acces</div>
+      <input type="password" value={passInput} onChange={e=>setPassInput(e.target.value)}
+        onKeyDown={e=>e.key==="Enter"&&handleLogin()}
+        placeholder="Parolă"
+        style={{width:"100%",maxWidth:300,padding:"14px 16px",borderRadius:12,border:passErr?"2px solid #E63946":"2px solid rgba(255,255,255,0.2)",fontSize:16,outline:"none",background:"rgba(255,255,255,0.08)",color:"#fff",textAlign:"center",letterSpacing:2}}/>
+      {passErr && <div style={{color:"#E63946",fontSize:13,fontWeight:700}}>Parolă incorectă</div>}
+      <button onClick={handleLogin} style={{width:"100%",maxWidth:300,padding:"14px",borderRadius:12,background:"#E63946",border:"none",color:"#fff",fontSize:16,fontWeight:800,cursor:"pointer"}}>Intră</button>
+    </div>
+  );
 
   if(loading) return <div style={{display:"flex",alignItems:"center",justifyContent:"center",height:"100vh",background:"#F2F3F8",flexDirection:"column",gap:16}}><div style={{fontSize:40}}>🔧</div><div style={{fontWeight:700,color:"#1a1a2e"}}>Gold Bike Service</div><div style={{color:"#aaa",fontSize:14}}>Se încarcă datele...</div></div>;
 
