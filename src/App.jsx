@@ -20,12 +20,12 @@ const COMANDA_ST = { "De comandat": "#FF7043", "Comandat": "#1E88E5", "Sosit": "
 
 const SERVICE = {
   nume: "Gold Bike Service",
-  adresa: "Adresa ta aici",
-  tel: "07xx xxx xxx",
-  email: "email@goldbike.ro",
-  cui: "RO00000000",
+  adresa: "Lupeni nr.21 Bistrita",
+  tel: "0754900307",
+  email: "goldbike_bn",
+  cui: "36155332",
   zileGratuite: 7,
-  taxaZi: 10,
+  taxaZi: 15,
 };
 
 const LEGAL = (o, cl, service) => `
