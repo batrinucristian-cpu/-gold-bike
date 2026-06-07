@@ -20,12 +20,12 @@ const COMANDA_ST = { "De comandat": "#FF7043", "Comandat": "#1E88E5", "Sosit": "
 
 const SERVICE = {
   nume: "Gold Bike Service",
-  adresa: "Lupeni nr.21 Bistrita",
-  tel: "0754900307",
-  email: "goldbike_bn@yahoo.mail",
-  cui: "36155332",
+  adresa: "Adresa ta aici",
+  tel: "07xx xxx xxx",
+  email: "email@goldbike.ro",
+  cui: "RO00000000",
   zileGratuite: 7,
-  taxaZi: 15,
+  taxaZi: 10,
 };
 
 const LEGAL = (o, cl, service) => `
@@ -174,22 +174,38 @@ export default function App() {
   };
 
   // ── New order form ──────────────────────────────────────────────────────────
-  const emptyForm = {clientId:"",numeNou:"",telNou:"",adresaNou:"",emailNou:"",bicicleta:"",defect:"",observatii:"",nextRevizieData:""};
+  const emptyForm = {tel:"",clientId:"",numeNou:"",adresaNou:"",emailNou:"",bicicleta:"",defect:"",observatii:"",nextRevizieData:""};
   const [form,setForm] = useState(emptyForm);
   const setF = k=>v=>setForm(f=>({...f,[k]:v}));
 
+  // Auto-detect client by phone
+  const clientByTel = form.tel.length >= 7 ? clients.find(c => c.tel.replace(/\s/g,"") === form.tel.replace(/\s/g,"")) : null;
+
   async function handleSaveOrder() {
     if(!form.bicicleta||!form.defect) return;
-    let cid = form.clientId;
+    let cid = clientByTel ? clientByTel.id : form.clientId;
     if(!cid && form.numeNou) {
       cid = uid();
-      await saveClient(cid, { nume:form.numeNou, tel:form.telNou, email:form.emailNou, adresa:form.adresaNou });
+      await saveClient(cid, { nume:form.numeNou, tel:form.tel, email:form.emailNou, adresa:form.adresaNou });
     }
     if(!cid) return;
     const id = uid();
     await saveOrder(id, { clientId:cid, bicicleta:form.bicicleta, defect:form.defect, status:"Preluat", data:today(), observatii:form.observatii, lucrarilEfectuate:"", poze:[], semnatura:null, piese:[], comenziPiese:[], manopera:0, nextRevizieData:form.nextRevizieData, dataNotificare:"" });
     setForm(emptyForm);
     setShowNew(false);
+  }
+
+  // Delete helpers
+  async function deleteOrder(id) {
+    if(!window.confirm("Ștergi această comandă?")) return;
+    await deleteDoc(doc(db, "orders", id));
+    setSel(null);
+  }
+  async function deleteClient(id) {
+    const hasOrders = orders.filter(o => o.clientId === id).length > 0;
+    if(hasOrders) { alert("Clientul are comenzi active. Șterge mai întâi comenzile."); return; }
+    if(!window.confirm("Ștergi acest client?")) return;
+    await deleteDoc(doc(db, "clients", id));
   }
 
   // ── Photos ──────────────────────────────────────────────────────────────────
@@ -336,11 +352,19 @@ export default function App() {
         {tab==="clienti"&&clients.map(c=>{
           const cos=orders.filter(o=>o.clientId===c.id);
           return <Card key={c.id}>
-            <div style={{fontWeight:800,fontSize:15,color:"#1a1a2e"}}>{c.nume}</div>
-            <div style={{fontSize:12,color:"#888",marginTop:2}}>📞 {c.tel} {c.email&&`· ${c.email}`}</div>
-            {c.adresa&&<div style={{fontSize:11,color:"#bbb",marginTop:1}}>📍 {c.adresa}</div>}
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
+              <div>
+                <div style={{fontWeight:800,fontSize:15,color:"#1a1a2e"}}>{c.nume}</div>
+                <div style={{fontSize:12,color:"#888",marginTop:2}}>📞 {c.tel} {c.email&&`· ${c.email}`}</div>
+                {c.adresa&&<div style={{fontSize:11,color:"#bbb",marginTop:1}}>📍 {c.adresa}</div>}
+              </div>
+              <button onClick={()=>deleteClient(c.id)} style={{background:"#FFEBEE",border:"none",borderRadius:8,padding:"6px 10px",cursor:"pointer",color:"#E63946",fontSize:12,fontWeight:700}}>🗑️</button>
+            </div>
             <div style={{marginTop:10,display:"flex",flexWrap:"wrap",gap:6}}>{[...new Set(cos.map(o=>o.bicicleta))].map((b,i)=><span key={i} style={{background:"#F0F4FF",borderRadius:8,padding:"3px 10px",fontSize:11,color:"#3949AB"}}>🚲 {b}</span>)}</div>
-            <div style={{marginTop:6,fontSize:11,color:"#bbb"}}>{cos.length} comenzi · Total: {cos.reduce((s,o)=>s+totalCost(o),0)} lei</div>
+            <div style={{marginTop:6,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+              <span style={{fontSize:11,color:"#bbb"}}>{cos.length} comenzi · Total: {cos.reduce((s,o)=>s+totalCost(o),0)} lei</span>
+              {cos.length>0&&<button onClick={()=>{setTab("comenzi");setSearch(c.nume);}} style={{background:"#F0F4FF",border:"none",borderRadius:8,padding:"5px 10px",cursor:"pointer",color:"#3949AB",fontSize:11,fontWeight:700}}>Vezi comenzi</button>}
+            </div>
           </Card>;
         })}
       </div>
@@ -360,6 +384,7 @@ export default function App() {
         return <Modal title="Detalii comandă" onClose={()=>setSel(null)} wide>
           <div style={{display:"flex",gap:6,marginBottom:14,overflowX:"auto"}}>
             {STATUSES.map(s=><button key={s} onClick={()=>patchOrder(sel,{status:s})} style={{padding:"6px 12px",borderRadius:10,border:`2px solid ${SC[s].dot}`,background:selOrder.status===s?SC[s].dot:"transparent",color:selOrder.status===s?"#fff":SC[s].text,fontWeight:700,fontSize:11,cursor:"pointer",whiteSpace:"nowrap"}}>{s}</button>)}
+            <button onClick={()=>deleteOrder(sel)} style={{padding:"6px 12px",borderRadius:10,border:"2px solid #E63946",background:"transparent",color:"#E63946",fontWeight:700,fontSize:11,cursor:"pointer",whiteSpace:"nowrap",marginLeft:"auto"}}>🗑️ Șterge</button>
           </div>
           <div style={{display:"flex",gap:8,marginBottom:14}}>
             <Btn onClick={()=>printDeviz(selOrder,cl,SERVICE)} color="#1565C0" outline small style={{flex:1}}>🖨️ Print</Btn>
@@ -428,18 +453,26 @@ export default function App() {
 
       {/* NEW ORDER */}
       {showNew&&<Modal title="Comandă nouă" onClose={()=>setShowNew(false)}>
-        <Card><Label t="Client existent"/>
-          <select value={form.clientId} onChange={e=>setF("clientId")(e.target.value)} style={{width:"100%",padding:"10px 12px",borderRadius:10,border:"1.5px solid #E0E0E0",fontSize:14,outline:"none",background:"#FAFAFA"}}>
-            <option value="">— Selectează client existent —</option>
-            {clients.map(c=><option key={c.id} value={c.id}>{c.nume} ({c.tel})</option>)}
-          </select>
+        <Card>
+          <Label t="Telefon client"/>
+          <input value={form.tel} onChange={e=>setF("tel")(e.target.value)} placeholder="07xx xxx xxx" type="tel"
+            style={{width:"100%",padding:"9px 12px",borderRadius:10,border:"1.5px solid #E0E0E0",fontSize:13,outline:"none",boxSizing:"border-box",background:"#FAFAFA"}}/>
+          {clientByTel && <div style={{marginTop:8,background:"#E8F5E9",borderRadius:8,padding:"8px 12px",fontSize:13,color:"#1B5E20",fontWeight:700}}>
+            ✅ Client găsit: {clientByTel.nume}
+            {orders.filter(o=>o.clientId===clientByTel.id).length>0&&<span style={{fontWeight:400,color:"#555"}}> · {orders.filter(o=>o.clientId===clientByTel.id).length} comenzi anterioare</span>}
+          </div>}
+          {form.tel.length>=7 && !clientByTel && <div style={{marginTop:8,background:"#FFF8E1",borderRadius:8,padding:"8px 12px",fontSize:12,color:"#F57F17"}}>
+            Client nou — completează datele de mai jos
+          </div>}
         </Card>
-        {!form.clientId&&<Card><Label t="Sau client nou"/>{[["numeNou","Nume complet"],["telNou","Telefon"],["emailNou","Email"],["adresaNou","Adresă"]].map(([k,ph])=><div key={k} style={{marginBottom:8}}><input value={form[k]} onChange={e=>setF(k)(e.target.value)} placeholder={ph} style={{width:"100%",padding:"9px 12px",borderRadius:10,border:"1.5px solid #E0E0E0",fontSize:13,outline:"none",boxSizing:"border-box",background:"#FAFAFA"}}/></div>)}</Card>}
+        {form.tel.length>=7 && !clientByTel && <Card><Label t="Date client nou"/>
+          {[["numeNou","Nume complet *"],["emailNou","Email"],["adresaNou","Adresă"]].map(([k,ph])=><div key={k} style={{marginBottom:8}}><input value={form[k]} onChange={e=>setF(k)(e.target.value)} placeholder={ph} style={{width:"100%",padding:"9px 12px",borderRadius:10,border:"1.5px solid #E0E0E0",fontSize:13,outline:"none",boxSizing:"border-box",background:"#FAFAFA"}}/></div>)}
+        </Card>}
         <Card><Label t="Bicicletă"/><input value={form.bicicleta} onChange={e=>setF("bicicleta")(e.target.value)} placeholder="ex. Trek FX3 – Negru" style={{width:"100%",padding:"9px 12px",borderRadius:10,border:"1.5px solid #E0E0E0",fontSize:13,outline:"none",boxSizing:"border-box",background:"#FAFAFA"}}/></Card>
         <Card><Label t="Defecte raportate"/><TA value={form.defect} onChange={setF("defect")} placeholder="Descrie defectele..."/></Card>
         <Card><Label t="Observații inițiale"/><TA value={form.observatii} onChange={setF("observatii")} placeholder="Opțional" rows={2}/></Card>
         <Card><Label t="Revizie planificată"/><input type="date" value={form.nextRevizieData} onChange={e=>setF("nextRevizieData")(e.target.value)} style={{width:"100%",padding:"9px 12px",borderRadius:10,border:"1.5px solid #E0E0E0",fontSize:14,outline:"none",boxSizing:"border-box",background:"#FAFAFA"}}/></Card>
-        <div style={{display:"flex",gap:10}}><Btn onClick={()=>setShowNew(false)} color="#888" outline>Anulează</Btn><Btn onClick={handleSaveOrder} disabled={!form.bicicleta||!form.defect||(!form.clientId&&!form.numeNou)}>Salvează</Btn></div>
+        <div style={{display:"flex",gap:10}}><Btn onClick={()=>setShowNew(false)} color="#888" outline>Anulează</Btn><Btn onClick={handleSaveOrder} disabled={!form.bicicleta||!form.defect||(!clientByTel&&!form.numeNou)||form.tel.length<7}>Salvează</Btn></div>
       </Modal>}
 
       {previewPoza&&<div onClick={()=>setPreviewPoza(null)} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.9)",zIndex:300,display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
@@ -465,4 +498,3 @@ export default function App() {
     </div>
   );
 }
-
