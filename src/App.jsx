@@ -22,7 +22,7 @@ const SERVICE = {
   nume: "Gold Bike Service",
   adresa: "Lupeni nr.21 Bistrita",
   tel: "0754900307",
-  email: "goldbike_bn",
+  email: "goldbike_bn@yahoo.mail",
   cui: "36155332",
   zileGratuite: 7,
   taxaZi: 15,
