@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useEffect } from "react";
+.import { useState, useRef, useCallback, useEffect } from "react";
 import { db } from "./firebase";
 import {
   collection, doc, onSnapshot, setDoc, updateDoc, deleteDoc
@@ -145,6 +145,7 @@ export default function App() {
   const [showProg,setShowProg]= useState(false);
   const [search,  setSearch]  = useState("");
   const [fStatus, setFStatus] = useState("Toate");
+  const [previewPoza, setPreviewPoza] = useState(null);
   const fileRef = useRef(null);
 
   // ── Firebase listeners ──────────────────────────────────────────────────────
@@ -403,7 +404,7 @@ export default function App() {
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}><Label t="📷 Fotografii bicicletă"/><Btn onClick={()=>fileRef.current?.click()} small color="#1565C0">+ Adaugă</Btn><input ref={fileRef} type="file" accept="image/*" multiple capture="environment" style={{display:"none"}} onChange={handlePhotos}/></div>
             {(selOrder.poze||[]).length===0
               ?<div style={{background:"#F0F4FF",borderRadius:10,padding:"20px",textAlign:"center",color:"#90A4AE",fontSize:13,border:"2px dashed #BBDEFB"}}><div style={{fontSize:28,marginBottom:4}}>📷</div>Apasă + pentru a fotografia bicicleta</div>
-              :<><div style={{display:"flex",flexWrap:"wrap",gap:8}}>{(selOrder.poze||[]).map(pz=><div key={pz.id} style={{position:"relative"}}><img src={pz.url} alt={pz.name} style={{width:90,height:90,objectFit:"cover",borderRadius:12,border:"2px solid #BBDEFB",display:"block"}}/><button onClick={async()=>{const o=orders.find(x=>x.id===sel);await patchOrder(sel,{poze:o.poze.filter(x=>x.id!==pz.id)});}} style={{position:"absolute",top:-7,right:-7,background:"#E63946",border:"2px solid #fff",borderRadius:"50%",width:22,height:22,color:"#fff",fontSize:11,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",fontWeight:900}}>✕</button></div>)}</div><div style={{marginTop:8,fontSize:11,color:"#90A4AE"}}>{(selOrder.poze||[]).length} fotografii</div></>
+              :<><div style={{display:"flex",flexWrap:"wrap",gap:8}}>{(selOrder.poze||[]).map(pz=><div key={pz.id} style={{position:"relative"}}><img src={pz.url} alt={pz.name} onClick={()=>setPreviewPoza(pz.url)} style={{width:90,height:90,objectFit:"cover",borderRadius:12,border:"2px solid #BBDEFB",display:"block",cursor:"pointer"}}/><button onClick={async()=>{const o=orders.find(x=>x.id===sel);await patchOrder(sel,{poze:o.poze.filter(x=>x.id!==pz.id)});}} style={{position:"absolute",top:-7,right:-7,background:"#E63946",border:"2px solid #fff",borderRadius:"50%",width:22,height:22,color:"#fff",fontSize:11,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",fontWeight:900}}>✕</button></div>)}</div><div style={{marginTop:8,fontSize:11,color:"#90A4AE"}}>{(selOrder.poze||[]).length} fotografii</div></>
             }
           </Card>
           <Card>
@@ -440,6 +441,11 @@ export default function App() {
         <Card><Label t="Revizie planificată"/><input type="date" value={form.nextRevizieData} onChange={e=>setF("nextRevizieData")(e.target.value)} style={{width:"100%",padding:"9px 12px",borderRadius:10,border:"1.5px solid #E0E0E0",fontSize:14,outline:"none",boxSizing:"border-box",background:"#FAFAFA"}}/></Card>
         <div style={{display:"flex",gap:10}}><Btn onClick={()=>setShowNew(false)} color="#888" outline>Anulează</Btn><Btn onClick={handleSaveOrder} disabled={!form.bicicleta||!form.defect||(!form.clientId&&!form.numeNou)}>Salvează</Btn></div>
       </Modal>}
+
+      {previewPoza&&<div onClick={()=>setPreviewPoza(null)} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.9)",zIndex:300,display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
+        <img src={previewPoza} alt="preview" style={{maxWidth:"100%",maxHeight:"90vh",borderRadius:12,objectFit:"contain"}}/>
+        <button onClick={()=>setPreviewPoza(null)} style={{position:"absolute",top:20,right:20,background:"rgba(255,255,255,0.2)",border:"none",borderRadius:"50%",width:40,height:40,color:"#fff",fontSize:20,cursor:"pointer"}}>✕</button>
+      </div>}
 
       {showSig&&selOrder&&<SignaturePad onSave={sig=>{patchOrder(sel,{semnatura:sig});setShowSig(false);}} onClose={()=>setShowSig(false)} legalText={LEGAL(selOrder,clients.find(c=>c.id===selOrder.clientId),SERVICE)}/>}
 
