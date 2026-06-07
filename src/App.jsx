@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useEffect } from "react";
+.import { useState, useRef, useCallback, useEffect } from "react";
 import { db } from "./firebase";
 import {
   collection, doc, onSnapshot, setDoc, updateDoc, deleteDoc
@@ -20,12 +20,12 @@ const COMANDA_ST = { "De comandat": "#FF7043", "Comandat": "#1E88E5", "Sosit": "
 
 const SERVICE = {
   nume: "Gold Bike Service",
-  adresa: "Adresa ta aici",
+  adresa: "Strada Lupeni 21 Bistrita",
   tel: "07xx xxx xxx",
-  email: "email@goldbike.ro",
-  cui: "RO00000000",
+  email: "goldbike_bn@yahoo.com",
+  cui: "36155332",
   zileGratuite: 7,
-  taxaZi: 10,
+  taxaZi: 15,
 };
 
 const LEGAL = (o, cl, service) => `
@@ -305,8 +305,8 @@ export default function App() {
 
       {/* TABS */}
       <div style={{display:"flex",background:"#fff",borderBottom:"1px solid #EBEBEB"}}>
-        {[["comenzi","📋 Comenzi"],["clienti","👤 Clienți"]].map(([k,l])=>(
-          <button key={k} onClick={()=>setTab(k)} style={{flex:1,padding:"13px 0",background:"none",border:"none",cursor:"pointer",fontSize:13,fontWeight:tab===k?800:500,color:tab===k?"#E63946":"#9E9E9E",borderBottom:tab===k?"2.5px solid #E63946":"2.5px solid transparent"}}>{l}</button>
+        {[["comenzi","📋 Comenzi"],["clienti","👤 Clienți"],["istoric","🕐 Istoric"]].map(([k,l])=>(
+          <button key={k} onClick={()=>setTab(k)} style={{flex:1,padding:"13px 0",background:"none",border:"none",cursor:"pointer",fontSize:12,fontWeight:tab===k?800:500,color:tab===k?"#E63946":"#9E9E9E",borderBottom:tab===k?"2.5px solid #E63946":"2.5px solid transparent"}}>{l}</button>
         ))}
       </div>
 
@@ -349,6 +349,47 @@ export default function App() {
           <button onClick={()=>setShowNew(true)} style={{position:"fixed",bottom:88,right:20,width:54,height:54,borderRadius:"50%",background:"#E63946",border:"none",color:"#fff",fontSize:26,cursor:"pointer",boxShadow:"0 4px 18px rgba(230,57,70,0.45)",display:"flex",alignItems:"center",justifyContent:"center"}}>+</button>
         </>)}
 
+        {tab==="istoric"&&(()=>{
+          const [istoricSearch, setIstoricSearch] = [search, setSearch];
+          const rezultate = istoricSearch.length>=2 ? clients.filter(c=>
+            c.nume.toLowerCase().includes(istoricSearch.toLowerCase()) ||
+            c.tel.replace(/\s/g,"").includes(istoricSearch.replace(/\s/g,""))
+          ) : [];
+          return <>
+            <div style={{position:"relative",marginBottom:12}}>
+              <span style={{position:"absolute",left:11,top:"50%",transform:"translateY(-50%)",fontSize:14}}>🔍</span>
+              <input value={istoricSearch} onChange={e=>setIstoricSearch(e.target.value)} placeholder="Caută după nume sau telefon..." style={{width:"100%",padding:"10px 12px 10px 34px",borderRadius:12,border:"1.5px solid #E0E0E0",fontSize:13,outline:"none",background:"#fff",boxSizing:"border-box"}}/>
+            </div>
+            {istoricSearch.length>=2 && rezultate.length===0 && <div style={{textAlign:"center",color:"#bbb",padding:30,fontSize:13}}>Niciun client găsit</div>}
+            {rezultate.map(c=>{
+              const cos=orders.filter(o=>o.clientId===c.id).sort((a,b)=>b.data.localeCompare(a.data));
+              return <div key={c.id} style={{marginBottom:16}}>
+                <div style={{background:"linear-gradient(135deg,#1a1a2e,#16213e)",borderRadius:14,padding:"14px 16px",marginBottom:8,color:"#fff"}}>
+                  <div style={{fontWeight:800,fontSize:15}}>{c.nume}</div>
+                  <div style={{fontSize:12,opacity:0.7,marginTop:2}}>📞 {c.tel} {c.email&&`· ${c.email}`}</div>
+                  <div style={{fontSize:11,opacity:0.6,marginTop:1}}>{cos.length} comenzi · Total: {cos.reduce((s,o)=>s+totalCost(o),0)} lei</div>
+                </div>
+                {cos.map(o=>(
+                  <div key={o.id} onClick={()=>{setSel(o.id);setTab("comenzi");}} style={{background:"#fff",borderRadius:12,padding:"12px 14px",marginBottom:6,boxShadow:"0 1px 4px rgba(0,0,0,0.07)",cursor:"pointer",borderLeft:`4px solid ${SC[o.status]?.dot||"#ccc"}`}}>
+                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                      <div style={{fontWeight:700,fontSize:13,color:"#1a1a2e"}}>🚲 {o.bicicleta}</div>
+                      <Badge s={o.status}/>
+                    </div>
+                    <div style={{fontSize:12,color:"#777",marginTop:3,overflow:"hidden",display:"-webkit-box",WebkitLineClamp:1,WebkitBoxOrient:"vertical"}}>{o.defect}</div>
+                    {o.lucrarilEfectuate&&<div style={{fontSize:11,color:"#43A047",marginTop:2}}>✔ {o.lucrarilEfectuate.slice(0,50)}{o.lucrarilEfectuate.length>50?"…":""}</div>}
+                    <div style={{display:"flex",justifyContent:"space-between",fontSize:11,color:"#bbb",marginTop:4}}>
+                      <span>📅 {fmtShort(o.data)}</span>
+                      {totalCost(o)>0&&<span style={{color:"#43A047",fontWeight:700}}>{totalCost(o)} lei</span>}
+                    </div>
+                  </div>
+                ))}
+                {cos.length===0&&<div style={{fontSize:12,color:"#bbb",padding:"10px 14px"}}>Nicio comandă</div>}
+              </div>;
+            })}
+            {istoricSearch.length<2&&<div style={{textAlign:"center",color:"#bbb",padding:40,fontSize:13}}>Introdu cel puțin 2 caractere pentru a căuta</div>}
+          </>;
+        })()}
+
         {tab==="clienti"&&clients.map(c=>{
           const cos=orders.filter(o=>o.clientId===c.id);
           return <Card key={c.id}>
@@ -371,8 +412,8 @@ export default function App() {
 
       {/* NAV */}
       <div style={{position:"fixed",bottom:0,left:"50%",transform:"translateX(-50%)",width:"100%",maxWidth:480,background:"#fff",borderTop:"1px solid #EBEBEB",display:"flex"}}>
-        {[["comenzi","📋","Comenzi"],["clienti","👤","Clienți"]].map(([k,ic,lb])=>(
-          <button key={k} onClick={()=>setTab(k)} style={{flex:1,padding:"8px 0 12px",background:"none",border:"none",cursor:"pointer",color:tab===k?"#E63946":"#bbb",fontSize:11,fontWeight:700}}>
+        {[["comenzi","📋","Comenzi"],["clienti","👤","Clienți"],["istoric","🕐","Istoric"]].map(([k,ic,lb])=>(
+          <button key={k} onClick={()=>setTab(k)} style={{flex:1,padding:"8px 0 12px",background:"none",border:"none",cursor:"pointer",color:tab===k?"#E63946":"#bbb",fontSize:10,fontWeight:700}}>
             <div style={{fontSize:20}}>{ic}</div>{lb}
           </button>
         ))}
@@ -455,7 +496,11 @@ export default function App() {
       {showNew&&<Modal title="Comandă nouă" onClose={()=>setShowNew(false)}>
         <Card>
           <Label t="Telefon client"/>
-          <input value={form.tel} onChange={e=>setF("tel")(e.target.value)} placeholder="07xx xxx xxx" type="tel"
+          <input value={form.tel} onChange={e=>{
+            setF("tel")(e.target.value);
+            const found = clients.find(c=>c.tel.replace(/\s/g,"")===e.target.value.replace(/\s/g,""));
+            if(found) setForm(f=>({...f,tel:e.target.value,numeNou:found.nume,emailNou:found.email||"",adresaNou:found.adresa||""}));
+          }} placeholder="07xx xxx xxx" type="tel"
             style={{width:"100%",padding:"9px 12px",borderRadius:10,border:"1.5px solid #E0E0E0",fontSize:13,outline:"none",boxSizing:"border-box",background:"#FAFAFA"}}/>
           {clientByTel && <div style={{marginTop:8,background:"#E8F5E9",borderRadius:8,padding:"8px 12px",fontSize:13,color:"#1B5E20",fontWeight:700}}>
             ✅ Client găsit: {clientByTel.nume}
@@ -465,8 +510,10 @@ export default function App() {
             Client nou — completează datele de mai jos
           </div>}
         </Card>
-        {form.tel.length>=7 && !clientByTel && <Card><Label t="Date client nou"/>
-          {[["numeNou","Nume complet *"],["emailNou","Email"],["adresaNou","Adresă"]].map(([k,ph])=><div key={k} style={{marginBottom:8}}><input value={form[k]} onChange={e=>setF(k)(e.target.value)} placeholder={ph} style={{width:"100%",padding:"9px 12px",borderRadius:10,border:"1.5px solid #E0E0E0",fontSize:13,outline:"none",boxSizing:"border-box",background:"#FAFAFA"}}/></div>)}
+        {form.tel.length>=7 && <Card><Label t={clientByTel?"Date client (editabile)":"Date client nou"}/>
+          <div style={{marginBottom:8}}><input value={form.numeNou} onChange={e=>setF("numeNou")(e.target.value)} placeholder="Nume complet *" style={{width:"100%",padding:"9px 12px",borderRadius:10,border:"1.5px solid #E0E0E0",fontSize:13,outline:"none",boxSizing:"border-box",background:"#FAFAFA"}}/></div>
+          <div style={{marginBottom:8}}><input value={form.emailNou} onChange={e=>setF("emailNou")(e.target.value)} placeholder="Email" style={{width:"100%",padding:"9px 12px",borderRadius:10,border:"1.5px solid #E0E0E0",fontSize:13,outline:"none",boxSizing:"border-box",background:"#FAFAFA"}}/></div>
+          <div><input value={form.adresaNou} onChange={e=>setF("adresaNou")(e.target.value)} placeholder="Adresă" style={{width:"100%",padding:"9px 12px",borderRadius:10,border:"1.5px solid #E0E0E0",fontSize:13,outline:"none",boxSizing:"border-box",background:"#FAFAFA"}}/></div>
         </Card>}
         <Card><Label t="Bicicletă"/><input value={form.bicicleta} onChange={e=>setF("bicicleta")(e.target.value)} placeholder="ex. Trek FX3 – Negru" style={{width:"100%",padding:"9px 12px",borderRadius:10,border:"1.5px solid #E0E0E0",fontSize:13,outline:"none",boxSizing:"border-box",background:"#FAFAFA"}}/></Card>
         <Card><Label t="Defecte raportate"/><TA value={form.defect} onChange={setF("defect")} placeholder="Descrie defectele..."/></Card>
